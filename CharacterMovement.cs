@@ -7,7 +7,6 @@ public class CharacterMovement : MonoBehaviour
 
     public bool IsMoving { get; private set; } = false; // Tracks if the character is moving
     public Vector2 MoveDirection { get; private set; } = Vector2.zero; // Tracks movement direction
-    public Boss bossScript; // Reference to the Boss script
 
     private Vector2 inputDirection = Vector2.zero; // Stores player input
 
@@ -23,12 +22,6 @@ public class CharacterMovement : MonoBehaviour
         {
             rb.freezeRotation = true; // Prevent unwanted rotation
         }
-
-        // Ensure Boss script is assigned
-        if (bossScript == null)
-        {
-            Debug.LogError("Boss script is not assigned! Please reference it in the Inspector.");
-        }
     }
 
     void Update()
@@ -39,12 +32,6 @@ public class CharacterMovement : MonoBehaviour
         // Update movement state
         IsMoving = inputDirection.magnitude > 0.01f;
         MoveDirection = inputDirection;
-
-        // Pass the movement direction to the Boss script
-        if (bossScript != null)
-        {
-            bossScript.raycastDirection = inputDirection;
-        }
     }
 
     void FixedUpdate()

@@ -4,7 +4,7 @@ using System.Collections;
 public class Boss : MonoBehaviour
 {
     public GameObject[] waypoints; // Array of waypoints
-    public float moveSpeed = 2f; // Movement speed
+    public float moveSpeed = 5f; // Movement speed
     public float stopDistance = 0.1f; // Distance to stop at a waypoint
     private int currentWaypointIndex = 0; // Index of the current waypoint
 
@@ -16,6 +16,14 @@ public class Boss : MonoBehaviour
     public bool isTriggered = false; // Flag to check if event is already triggered
     public Vector2 raycastDirection; // Direction for raycasting
 
+    public Transform head; // Transform for the head object
+    public Transform body; // Transform for the body object
+
+    public AudioSource audioSource; // AudioSource for playing sounds
+    public AudioClip moveSound; // Sound when the boss is moving
+    public AudioClip triggerSound; // Sound when the boss meets the office boy
+    public AudioClip headTurnSound; // Sound when the head turns to look at an object
+
     private void Start()
     {
         // Ensure waypoints are assigned
@@ -26,9 +34,6 @@ public class Boss : MonoBehaviour
             return;
         }
 
-        Debug.Log("Number of waypoints: " + waypoints.Length);
-
-        // Initialize the Rigidbody
         rb = GetComponent<Rigidbody2D>();
         if (rb == null)
         {
@@ -37,29 +42,21 @@ public class Boss : MonoBehaviour
             return;
         }
 
-        Debug.Log("isTriggered: " + isTriggered);
-
-        Debug.Log("Boss script enabled: " + enabled);
-
+        // Ensure AudioSource is assigned
+        if (audioSource == null)
+        {
+            Debug.LogError("AudioSource is not assigned. Please attach an AudioSource component to the Boss object.");
+        }
     }
 
     private void FixedUpdate()
     {
-        Debug.Log("isBossMoving: " + GameManager.Instance.isBossMoving);
         if (GameManager.Instance.isBossMoving && !isTriggered)
         {
-             MoveToWaypoint();
+            MoveToWaypoint();
         }
 
-        Debug.Log("FixedUpdate Called"); // Add this to confirm the method is running
-        if (!isTriggered)
-        {
-            MoveToWaypoint(); // Move between waypoints
-            Debug.Log($"Boss moving towards waypoint {currentWaypointIndex}");
-
-        }
-
-        PerformRaycast(); // Perform raycasting to detect objects
+        PerformRaycast();
     }
 
     private void MoveToWaypoint()
@@ -68,21 +65,31 @@ public class Boss : MonoBehaviour
 
         // Get the direction to the current waypoint
         Vector3 direction = (waypoints[currentWaypointIndex].transform.position - transform.position).normalized;
-        Debug.Log($"Moving towards: {waypoints[currentWaypointIndex].name}, Direction: {direction}");
+
+        // Rotate body towards movement direction
+        RotateBody(direction);
+
+        // Play movement sound
+        PlaySound(moveSound);
 
         // Move the boss using velocity
         rb.velocity = new Vector2(direction.x, direction.y) * moveSpeed;
-
-        // Check distance
-        float distance = Vector3.Distance(transform.position, waypoints[currentWaypointIndex].transform.position);
-        Debug.Log($"Distance to waypoint: {distance}");
 
         // Check if the boss has reached the waypoint
         if (Vector3.Distance(transform.position, waypoints[currentWaypointIndex].transform.position) < stopDistance)
         {
             rb.velocity = Vector2.zero; // Stop the boss
-            Debug.Log("Reached waypoint: " + currentWaypointIndex);
             currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length; // Loop to the next waypoint
+        }
+    }
+
+    private void RotateBody(Vector3 direction)
+    {
+        // Update body rotation based on movement direction
+        if (body != null && direction != Vector3.zero)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            body.rotation = Quaternion.Euler(0, 0, angle);
         }
     }
 
@@ -95,13 +102,26 @@ public class Boss : MonoBehaviour
 
         if (hit.collider != null)
         {
-            Debug.Log("Boss sees: " + hit.collider.name);
+            // Play head turn sound
+            PlaySound(headTurnSound);
 
-            // Trigger event if the office boy is detected
+            // Update head rotation to look at the detected object
+            RotateHead(hit.point);
+
             if (hit.collider.gameObject == officeBoy && !isTriggered)
             {
                 TriggerEventOnMeeting();
             }
+        }
+    }
+
+    private void RotateHead(Vector3 lookAtPoint)
+    {
+        if (head != null)
+        {
+            Vector3 direction = (lookAtPoint - head.position).normalized;
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            head.rotation = Quaternion.Euler(0, 0, angle);
         }
     }
 
@@ -115,7 +135,16 @@ public class Boss : MonoBehaviour
         GameManager.Instance.isBossMoving = false;
         GameManager.Instance.isOfficeBoyMoving = true;
 
-        // Handle further actions like animations, sounds, or UI updates here
+       // Play trigger sound only when the event is triggered
+       PlaySound(triggerSound);
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+        {
+            audioSource.PlayOneShot(clip);
+        }
     }
 
     private void OnDrawGizmos()
@@ -126,13 +155,10 @@ public class Boss : MonoBehaviour
 
         // Visualize waypoints
         if (waypoints != null)
-        Debug.Log($"Waypoints Count: {waypoints.Length}");
         {
             Gizmos.color = Color.blue;
             foreach (var waypoint in waypoints)
             {
-                if (waypoint != null)
-                Debug.Log("Waypoint Position: " + waypoint.transform.position);
                 Gizmos.DrawSphere(waypoint.transform.position, 0.2f);
             }
         }
